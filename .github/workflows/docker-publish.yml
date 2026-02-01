@@ -26,11 +26,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Fix: Set up Docker Buildx to support 'gha' cache export
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Log into GitHub Container Registry
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -39,7 +37,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata (tags, labels)
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -50,12 +47,12 @@ jobs:
             type=semver,pattern={{version}}
             type=sha
 
-      # Build and push with Buildx support
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./kosync-dotnet-main
+          file: ./kosync-dotnet-main/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
