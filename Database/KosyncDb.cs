@@ -39,6 +39,8 @@ public class KosyncDb
 
         // Inicializace systémových nastavení
         var settingsCollection = Context.GetCollection<SystemSetting>("system_settings");
+        settingsCollection.EnsureIndex(s => s.Key, true); // Unikátní index na Key
+
         var regDisabled = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
         if (regDisabled is null)
         {
@@ -46,7 +48,7 @@ public class KosyncDb
             settingsCollection.Insert(new SystemSetting 
             { 
                 Key = "RegistrationDisabled", 
-                Value = envVal?.ToLower() == "true" ? "true" : "false" 
+                Value = (envVal != null && envVal.ToLower() == "true") ? "true" : "false" 
             });
         }
     }
