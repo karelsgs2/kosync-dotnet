@@ -1,3 +1,4 @@
+
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +9,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ProxyService, ProxyService>();
 builder.Services.AddScoped<IPService, IPService>();
 builder.Services.AddScoped<UserService, UserService>();
-builder.Services.AddScoped<KosyncDb, KosyncDb>();
+// Změna na Singleton: Databáze se inicializuje pouze jednou při startu
+builder.Services.AddSingleton<KosyncDb, KosyncDb>();
 
 
 builder.Services.AddControllers();
