@@ -1,3 +1,4 @@
+
 namespace Kosync.Database;
 
 public class KosyncDb
@@ -35,5 +36,18 @@ public class KosyncDb
 
         userCollection.Update(adminUser);
         userCollection.EnsureIndex(i => i.Username);
+
+        // Inicializace systémových nastavení
+        var settingsCollection = Context.GetCollection<SystemSetting>("system_settings");
+        var regDisabled = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
+        if (regDisabled is null)
+        {
+            var envVal = Environment.GetEnvironmentVariable("REGISTRATION_DISABLED");
+            settingsCollection.Insert(new SystemSetting 
+            { 
+                Key = "RegistrationDisabled", 
+                Value = envVal?.ToLower() == "true" ? "true" : "false" 
+            });
+        }
     }
 }
