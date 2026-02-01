@@ -7,12 +7,10 @@ namespace Kosync.Controllers;
 public class ManagementController : ControllerBase
 {
     private ILogger<ManagementController> _logger;
-
     private ProxyService _proxyService;
     private IPService _ipService;
     private KosyncDb _db;
     private UserService _userService;
-
 
     public ManagementController(ILogger<ManagementController> logger, ProxyService proxyService, IPService ipService, KosyncDb db, UserService userService)
     {
@@ -136,6 +134,28 @@ public class ManagementController : ControllerBase
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
         return StatusCode(200, user.Documents);
+    }
+
+    [HttpDelete("/manage/users/documents")]
+    public ObjectResult DeleteDocument(string username, string documentHash)
+    {
+        if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
+        {
+            return StatusCode(401, new { message = "Unauthorized" });
+        }
+
+        var userCollection = _db.Context.GetCollection<User>("users").Include(i => i.Documents);
+        var user = userCollection.FindOne(u => u.Username == username);
+        if (user is null) return StatusCode(404, new { message = "User not found" });
+
+        var doc = user.Documents.FirstOrDefault(d => d.DocumentHash == documentHash);
+        if (doc == null) return StatusCode(404, new { message = "Document not found" });
+
+        user.Documents.Remove(doc);
+        userCollection.Update(user);
+
+        LogInfo($"Document [{documentHash}] deleted for user [{username}] by [{_userService.Username}]");
+        return StatusCode(200, new { message = "Success" });
     }
 
     [HttpPut("/manage/users/active")]
