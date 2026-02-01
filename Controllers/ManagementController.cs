@@ -29,10 +29,10 @@ public class ManagementController : ControllerBase
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         var settingsList = settingsCollection.FindAll();
         
-        // Pokud existují duplicity (předchozí chyby), vezmeme tu poslední unikátní
         var settings = new Dictionary<string, string>();
         foreach (var s in settingsList)
         {
+            // Pokud se v DB náhodou vyskytne duplicita, poslední vyhrává
             settings[s.Key] = s.Value;
         }
         
@@ -47,6 +47,7 @@ public class ManagementController : ControllerBase
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         foreach (var entry in payload)
         {
+            // Hledáme existující klíč
             var s = settingsCollection.FindOne(i => i.Key == entry.Key);
             if (s != null)
             {
@@ -79,7 +80,7 @@ public class ManagementController : ControllerBase
             isAdministrator = i.IsAdministrator,
             isActive = i.IsActive,
             documentCount = i.Documents.Count()
-        });
+        }).ToList();
 
         LogInfo($"User [{_userService.Username}] requested /manage/users");
         return StatusCode(200, users);
