@@ -79,11 +79,14 @@ public class SyncController : ControllerBase
     {
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         var regSetting = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
-        bool registrationDisabled = regSetting?.Value == "true";
+        
+        // Case-insensitive porovnání: RegistrationDisabled="true" nebo "True"
+        bool registrationDisabled = regSetting?.Value != null && 
+                                   regSetting.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
 
         if (registrationDisabled)
         {
-            LogWarning("Account creation attempted but registration is disabled.");
+            LogWarning($"Account creation BLOCKED for [{payload.username}] because RegistrationDisabled is set to true.");
             return StatusCode(402, new { message = "User registration is disabled" });
         }
 
@@ -95,7 +98,7 @@ public class SyncController : ControllerBase
         userCollection.Insert(user);
         userCollection.EnsureIndex(u => u.Username);
 
-        LogInfo($"User [{payload.username}] created.");
+        LogInfo($"User [{payload.username}] created via public registration.");
         return StatusCode(201, new { username = payload.username });
     }
 
