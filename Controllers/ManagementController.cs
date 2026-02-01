@@ -27,7 +27,14 @@ public class ManagementController : ControllerBase
         if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
-        var settings = settingsCollection.FindAll().ToDictionary(s => s.Key, s => s.Value);
+        var settingsList = settingsCollection.FindAll();
+        
+        // Pokud existují duplicity (předchozí chyby), vezmeme tu poslední unikátní
+        var settings = new Dictionary<string, string>();
+        foreach (var s in settingsList)
+        {
+            settings[s.Key] = s.Value;
+        }
         
         return StatusCode(200, settings);
     }
@@ -52,7 +59,7 @@ public class ManagementController : ControllerBase
             }
         }
 
-        LogInfo($"User [{_userService.Username}] updated system settings.");
+        LogInfo($"User [{_userService.Username}] updated system settings: {string.Join(", ", payload.Select(kv => kv.Key + "=" + kv.Value))}");
         return StatusCode(200, new { message = "Settings updated" });
     }
 
