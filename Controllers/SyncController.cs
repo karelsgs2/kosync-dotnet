@@ -57,6 +57,23 @@ public class SyncController : ControllerBase
         return StatusCode(200, new { message = "Profile updated" });
     }
 
+    [HttpPut("/users/password")]
+    public ObjectResult UpdateMyPassword(PasswordChangeRequest payload)
+    {
+        if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
+        if (string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
+
+        var userCollection = _db.Context.GetCollection<User>("users");
+        var user = userCollection.FindOne(i => i.Username == _userService.Username);
+        if (user is null) return StatusCode(404, new { message = "User not found" });
+
+        user.PasswordHash = Utility.HashPassword(payload.password);
+        userCollection.Update(user);
+
+        LogInfo($"User [{_userService.Username}] updated their own password.");
+        return StatusCode(200, new { message = "Password updated successfully" });
+    }
+
     [HttpGet("/users/auth")]
     public ObjectResult AuthoriseUser()
     {
