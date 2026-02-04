@@ -66,7 +66,7 @@ public class UserService
 
         if (string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(passwordHash)) return;
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _username && i.PasswordHash == passwordHash);
 
         if (user is null) return;
