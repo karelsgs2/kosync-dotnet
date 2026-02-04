@@ -79,7 +79,7 @@ public class ManagementController : ControllerBase
             username = i.Username,
             isAdministrator = i.IsAdministrator,
             isActive = i.IsActive,
-            documentCount = i.Documents.Count
+            documentCount = i.Documents?.Count ?? 0
         });
 
         LogInfo($"User [{_userService.Username}] requested /manage/users");
@@ -141,7 +141,7 @@ public class ManagementController : ControllerBase
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
-        return StatusCode(200, user.Documents);
+        return StatusCode(200, user.Documents ?? new List<Document>());
     }
 
     [HttpDelete("/manage/users/documents")]
@@ -155,6 +155,8 @@ public class ManagementController : ControllerBase
         var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(u => u.Username == username);
         if (user is null) return StatusCode(404, new { message = "User not found" });
+
+        if (user.Documents == null) return StatusCode(404, new { message = "Document not found" });
 
         var doc = user.Documents.FirstOrDefault(d => d.DocumentHash == documentHash);
         if (doc == null) return StatusCode(404, new { message = "Document not found" });
@@ -190,23 +192,31 @@ public class ManagementController : ControllerBase
     [HttpPut("/manage/users/password")]
     public ObjectResult UpdatePassword([FromQuery] string username, [FromBody] PasswordChangeRequest payload)
     {
-        if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
+        try 
         {
-            return StatusCode(401, new { message = "Unauthorized" });
+            if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
+            {
+                return StatusCode(401, new { message = "Unauthorized" });
+            }
+
+            if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
+            if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
+
+            var userCollection = _db.Context.GetCollection<DbUser>("users");
+            var user = userCollection.FindOne(i => i.Username == username);
+            if (user is null) return StatusCode(400, new { message = "User does not exist" });
+
+            user.PasswordHash = Utility.HashPassword(payload.password);
+            userCollection.Update(user);
+
+            LogInfo($"User [{username}] password updated by [{_userService.Username}].");
+            return StatusCode(200, new { message = "Password changed successfully" });
         }
-
-        if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
-        if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
-
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
-        var user = userCollection.FindOne(i => i.Username == username);
-        if (user is null) return StatusCode(400, new { message = "User does not exist" });
-
-        user.PasswordHash = Utility.HashPassword(payload.password);
-        userCollection.Update(user);
-
-        LogInfo($"User [{username}] password updated by [{_userService.Username}].");
-        return StatusCode(200, new { message = "Password changed successfully" });
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Management password update failed for {User}", username);
+            return StatusCode(500, new { message = "Internal Server Error", detail = ex.Message });
+        }
     }
 
     private void LogInfo(string text) => Log(LogLevel.Information, text);
