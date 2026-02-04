@@ -32,7 +32,6 @@ public class ManagementController : ControllerBase
         var settings = new Dictionary<string, string>();
         foreach (var s in settingsList)
         {
-            // Pokud se v DB náhodou vyskytne duplicita, poslední vyhrává
             settings[s.Key] = s.Value;
         }
         
@@ -47,7 +46,6 @@ public class ManagementController : ControllerBase
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         foreach (var entry in payload)
         {
-            // Hledáme existující klíč
             var s = settingsCollection.FindOne(i => i.Key == entry.Key);
             if (s != null)
             {
@@ -80,7 +78,7 @@ public class ManagementController : ControllerBase
             isAdministrator = i.IsAdministrator,
             isActive = i.IsActive,
             documentCount = i.Documents.Count()
-        }).ToList();
+        });
 
         LogInfo($"User [{_userService.Username}] requested /manage/users");
         return StatusCode(200, users);
@@ -188,17 +186,17 @@ public class ManagementController : ControllerBase
     }
 
     [HttpPut("/manage/users/password")]
-    public ObjectResult UpdatePassword(string username, PasswordChangeRequest payload)
+    public ObjectResult UpdatePassword([FromQuery] string username, [FromBody] PasswordChangeRequest payload)
     {
         if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
         {
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        if (string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
+        if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
         if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<User>("users").Include(x => x.Documents);
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
