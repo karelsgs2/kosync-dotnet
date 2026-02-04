@@ -1,7 +1,7 @@
 
 namespace Kosync.Database.Entities;
 
-public class User
+public class DbUser
 {
     [BsonId]
     public int Id { get; set; }
