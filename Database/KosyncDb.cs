@@ -10,11 +10,15 @@ public class KosyncDb
 
     public KosyncDb()
     {
-        // Globální oprava pro LiteDB cast exception pod .NET 8
-        // Zajišťuje, že pokud je v DB uloženo číslo jako Decimal, mapper ho dokáže načíst do Double a naopak.
+        // Kritická oprava pro .NET 8: Explicitní mapování číselných typů.
+        // Pokud LiteDB najde v DB Decimal, převede ho na Double pro naše entity.
         BsonMapper.Global.RegisterType<double>(
             serialize: v => new BsonValue(v),
-            deserialize: v => v.IsNumber ? v.AsDouble : 0.0
+            deserialize: v => {
+                if (v.IsNumber) return v.AsDouble;
+                if (v.IsDecimal) return (double)v.AsDecimal;
+                return 0.0;
+            }
         );
 
         // Zajištění, že složka pro databázi existuje
@@ -37,7 +41,7 @@ public class KosyncDb
 
         var userCollection = Context.GetCollection<DbUser>("users");
 
-        // Použití explicitního Query.EQ místo LINQ pro bezpečnější deserializaci při startu
+        // Hledání admina bez LINQ pro maximální stabilitu při inicializaci
         var adminUser = userCollection.FindOne(Query.EQ("Username", "admin"));
         
         if (adminUser is null)
