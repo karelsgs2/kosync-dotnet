@@ -3,6 +3,7 @@ namespace Kosync.Database.Entities;
 
 public class User
 {
+    [BsonId]
     public int Id { get; set; }
 
     public string Username { get; set; } = default!;
@@ -17,5 +18,10 @@ public class User
 
     public string? MetadataJson { get; set; }
 
-    public List<Document> Documents { get; set; } = new();
+    private List<Document> _documents = new();
+    public List<Document> Documents 
+    { 
+        get => _documents ??= new(); 
+        set => _documents = value; 
+    }
 }
