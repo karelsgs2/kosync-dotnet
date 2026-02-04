@@ -1,13 +1,16 @@
+
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Kopírování projektu a obnova závislostí
+# Kopírování projektu
 COPY ["Kosync.csproj", "./"]
 RUN dotnet restore "Kosync.csproj"
 
-# Kopírování zbytku zdrojových kódů a publikace
+# Kopírování všech zdrojů
 COPY . .
+
+# Publikace (výstup do /app/publish)
 RUN dotnet publish "Kosync.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Runtime
@@ -15,21 +18,20 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 EXPOSE 8080
 
-# Vytvoření složky pro data a nastavení oprávnění pro uživatele 1000 (standardní non-root UID)
-RUN mkdir -p /app/data && chown -R 1000:1000 /app/data
+# Příprava složky pro data
+RUN mkdir -p /app/data && chmod 777 /app/data
 
-# Kopírování zkompilované aplikace z build stage
+# Kopírování binárek z buildu
 COPY --from=build /app/publish .
 
-# Nastavení výchozích proměnných prostředí
+# Proměnné prostředí
 ENV ASPNETCORE_HTTP_PORTS=8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV SINGLE_LINE_LOGGING=true
 
-# Spuštění pod non-root uživatelem z bezpečnostních důvodů
+# Spuštění pod uživatelem 1000
 USER 1000
 
-# Definice Volume pro perzistentní uložení databáze
 VOLUME ["/app/data"]
 
 ENTRYPOINT ["dotnet", "Kosync.dll"]
