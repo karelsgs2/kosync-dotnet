@@ -141,6 +141,8 @@ public class SyncController : ControllerBase
         var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
 
+        if (user.Documents == null) user.Documents = new List<Document>();
+
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == payload.document);
         if (document is null)
         {
@@ -165,6 +167,9 @@ public class SyncController : ControllerBase
 
         var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
+        
+        if (user.Documents == null) return StatusCode(502, new { message = "Document not found" });
+        
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == documentHash);
 
         if (document is null) return StatusCode(502, new { message = "Document not found" });
