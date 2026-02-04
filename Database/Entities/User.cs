@@ -6,9 +6,9 @@ public class DbUser
     [BsonId]
     public int Id { get; set; }
 
-    public string Username { get; set; } = default!;
+    public string Username { get; set; } = string.Empty;
 
-    public string PasswordHash { get; set; } = default!;
+    public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
 
@@ -18,10 +18,5 @@ public class DbUser
 
     public string? MetadataJson { get; set; }
 
-    private List<Document> _documents = new();
-    public List<Document> Documents 
-    { 
-        get => _documents ??= new(); 
-        set => _documents = value; 
-    }
+    public List<Document> Documents { get; set; } = new();
 }
