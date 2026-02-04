@@ -7,7 +7,7 @@ public class Document
 
     public string Progress { get; set; } = default!;
 
-    public double Percentage { get; set; } = default!;
+    public decimal Percentage { get; set; } = default!;
 
     public string Device { get; set; } = default!;
 
