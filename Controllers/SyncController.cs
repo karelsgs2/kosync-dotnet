@@ -69,8 +69,8 @@ public class SyncController : ControllerBase
             if (payload == null || string.IsNullOrWhiteSpace(payload.password)) 
                 return StatusCode(400, new { message = "Password cannot be empty" });
 
-            // DŮLEŽITÉ: Musíme použít Include, jinak LiteDB smaže kolekci Documents při Update!
-            var userCollection = _db.Context.GetCollection<User>("users").Include(x => x.Documents);
+            // V LiteDB jsou Documents embedded v User, Include se nepoužívá a způsoboval chybu 500
+            var userCollection = _db.Context.GetCollection<User>("users");
             var user = userCollection.FindOne(i => i.Username == _userService.Username);
             
             if (user is null) return StatusCode(404, new { message = "User not found" });
@@ -137,7 +137,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users").Include(i => i.Documents);
+        var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
 
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == payload.document);
@@ -162,7 +162,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users").Include(i => i.Documents);
+        var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == documentHash);
 
@@ -183,10 +183,4 @@ public class SyncController : ControllerBase
         logMsg += $" {text}";
         _logger?.Log(level, logMsg);
     }
-}
-
-public class UserProfileUpdateRequest
-{
-    public string? preferences { get; set; }
-    public string? metadata { get; set; }
 }
