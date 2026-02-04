@@ -184,3 +184,9 @@ public class SyncController : ControllerBase
         _logger?.Log(level, logMsg);
     }
 }
+
+public class UserProfileUpdateRequest
+{
+    public string? preferences { get; set; }
+    public string? metadata { get; set; }
+}
