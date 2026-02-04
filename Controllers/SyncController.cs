@@ -58,7 +58,8 @@ public class SyncController : ControllerBase
     }
 
     [HttpPut("/users/password")]
-    public ObjectResult UpdateMyPassword(PasswordChangeRequest payload)
+    [HttpPut("/users/password/")]
+    public ObjectResult UpdateMyPassword([FromBody] PasswordChangeRequest payload)
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
         if (string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
