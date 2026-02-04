@@ -150,7 +150,7 @@ public class ManagementController : ControllerBase
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users").Include(i => i.Documents);
+        var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(u => u.Username == username);
         if (user is null) return StatusCode(404, new { message = "User not found" });
 
@@ -196,7 +196,7 @@ public class ManagementController : ControllerBase
         if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
         if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
 
-        var userCollection = _db.Context.GetCollection<User>("users").Include(x => x.Documents);
+        var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
