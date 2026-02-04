@@ -4,9 +4,6 @@ using Kosync.Database.Entities;
 
 namespace Kosync.Controllers;
 
-// Explicitní alias pro vyřešení konfliktů s ControllerBase.User
-using KosyncUser = Kosync.Database.Entities.User;
-
 [ApiController]
 public class SyncController : ControllerBase
 {
@@ -36,7 +33,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         
         return StatusCode(200, new {
@@ -51,7 +48,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         if (user == null) return StatusCode(404, new { message = "User not found" });
 
@@ -74,12 +71,11 @@ public class SyncController : ControllerBase
             if (payload == null || string.IsNullOrWhiteSpace(payload.password)) 
                 return StatusCode(400, new { message = "Password cannot be empty" });
 
-            var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+            var userCollection = _db.Context.GetCollection<DbUser>("users");
             var user = userCollection.FindOne(i => i.Username == _userService.Username);
             
             if (user is null) return StatusCode(404, new { message = "User not found in database" });
 
-            // Zahashování a uložení
             user.PasswordHash = Utility.HashPassword(payload.password);
             bool updated = userCollection.Update(user);
 
@@ -119,11 +115,11 @@ public class SyncController : ControllerBase
 
             if (registrationDisabled) return StatusCode(402, new { message = "User registration is disabled" });
 
-            var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+            var userCollection = _db.Context.GetCollection<DbUser>("users");
             var existing = userCollection.FindOne(u => u.Username == payload.username);
             if (existing is not null) return StatusCode(402, new { message = "User already exists" });
 
-            var user = new KosyncUser() { Username = payload.username, PasswordHash = Utility.HashPassword(payload.password) };
+            var user = new DbUser() { Username = payload.username, PasswordHash = Utility.HashPassword(payload.password) };
             userCollection.Insert(user);
             userCollection.EnsureIndex(u => u.Username);
 
@@ -142,7 +138,7 @@ public class SyncController : ControllerBase
         try {
             if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-            var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+            var userCollection = _db.Context.GetCollection<DbUser>("users");
             var user = userCollection.FindOne(i => i.Username == _userService.Username);
             if (user == null) return StatusCode(404, new { message = "User not found" });
 
@@ -173,7 +169,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         
         var document = user?.Documents?.FirstOrDefault(i => i.DocumentHash == documentHash);
