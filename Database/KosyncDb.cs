@@ -1,5 +1,6 @@
 
 using System.IO;
+using Kosync.Database.Entities;
 
 namespace Kosync.Database;
 
@@ -27,12 +28,12 @@ public class KosyncDb
             adminPassword = "admin";
         }
 
-        var userCollection = Context.GetCollection<User>("users");
+        var userCollection = Context.GetCollection<DbUser>("users");
 
         var adminUser = userCollection.FindOne(i => i.Username == "admin");
         if (adminUser is null)
         {
-            adminUser = new User()
+            adminUser = new DbUser()
             {
                 Username = "admin",
                 IsAdministrator = true,
