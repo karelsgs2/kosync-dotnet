@@ -4,8 +4,6 @@ using Kosync.Database.Entities;
 
 namespace Kosync.Controllers;
 
-using KosyncUser = Kosync.Database.Entities.User;
-
 [ApiController]
 public class ManagementController : ControllerBase
 {
@@ -64,7 +62,7 @@ public class ManagementController : ControllerBase
     {
         if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var users = userCollection.FindAll().Select(i => new
         {
             id = i.Id,
@@ -82,10 +80,10 @@ public class ManagementController : ControllerBase
     {
         if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         if (userCollection.Exists(i => i.Username == payload.username)) return StatusCode(400, new { message = "User already exists" });
 
-        var user = new KosyncUser()
+        var user = new DbUser()
         {
             Username = payload.username,
             PasswordHash = Utility.HashPassword(payload.password)
@@ -103,7 +101,7 @@ public class ManagementController : ControllerBase
     {
         if (!_userService.IsAdmin && username != _userService.Username) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(u => u.Username == username);
         if (user is null) return StatusCode(404, new { message = "User not found" });
 
