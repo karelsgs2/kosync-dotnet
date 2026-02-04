@@ -10,6 +10,13 @@ public class KosyncDb
 
     public KosyncDb()
     {
+        // Globální oprava pro LiteDB cast exception pod .NET 8
+        // Zajišťuje, že pokud je v DB uloženo číslo jako Decimal, mapper ho dokáže načíst do Double a naopak.
+        BsonMapper.Global.RegisterType<double>(
+            serialize: v => new BsonValue(v),
+            deserialize: v => v.IsNumber ? v.AsDouble : 0.0
+        );
+
         // Zajištění, že složka pro databázi existuje
         if (!Directory.Exists("data"))
         {
@@ -30,18 +37,22 @@ public class KosyncDb
 
         var userCollection = Context.GetCollection<DbUser>("users");
 
-        var adminUser = userCollection.FindOne(i => i.Username == "admin");
+        // Použití explicitního Query.EQ místo LINQ pro bezpečnější deserializaci při startu
+        var adminUser = userCollection.FindOne(Query.EQ("Username", "admin"));
+        
         if (adminUser is null)
         {
             adminUser = new DbUser()
             {
                 Username = "admin",
                 IsAdministrator = true,
+                IsActive = true
             };
             userCollection.Insert(adminUser);
         }
 
         adminUser.PasswordHash = Utility.HashPassword(adminPassword);
+        adminUser.IsAdministrator = true;
 
         userCollection.Update(adminUser);
         userCollection.EnsureIndex(i => i.Username);
