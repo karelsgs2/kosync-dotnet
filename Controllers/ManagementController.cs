@@ -1,18 +1,19 @@
 
 using Microsoft.AspNetCore.Mvc;
+using Kosync.Database.Entities;
 
 namespace Kosync.Controllers;
 
-using DbUser = Kosync.Database.Entities.User;
+using KosyncUser = Kosync.Database.Entities.User;
 
 [ApiController]
 public class ManagementController : ControllerBase
 {
-    private ILogger<ManagementController> _logger;
-    private ProxyService _proxyService;
-    private IPService _ipService;
-    private KosyncDb _db;
-    private UserService _userService;
+    private readonly ILogger<ManagementController> _logger;
+    private readonly ProxyService _proxyService;
+    private readonly IPService _ipService;
+    private readonly KosyncDb _db;
+    private readonly UserService _userService;
 
     public ManagementController(ILogger<ManagementController> logger, ProxyService proxyService, IPService ipService, KosyncDb db, UserService userService)
     {
@@ -29,13 +30,7 @@ public class ManagementController : ControllerBase
         if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
-        var settingsList = settingsCollection.FindAll();
-        
-        var settings = new Dictionary<string, string>();
-        foreach (var s in settingsList)
-        {
-            settings[s.Key] = s.Value;
-        }
+        var settings = settingsCollection.FindAll().ToDictionary(s => s.Key, s => s.Value);
         
         return StatusCode(200, settings);
     }
@@ -60,19 +55,16 @@ public class ManagementController : ControllerBase
             }
         }
 
-        LogInfo($"User [{_userService.Username}] updated system settings: {string.Join(", ", payload.Select(kv => kv.Key + "=" + kv.Value))}");
+        LogInfo($"Settings updated by [{_userService.Username}]");
         return StatusCode(200, new { message = "Settings updated" });
     }
 
     [HttpGet("/manage/users")]
     public ObjectResult GetUsers()
     {
-        if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
+        if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
+        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
         var users = userCollection.FindAll().Select(i => new
         {
             id = i.Id,
@@ -82,149 +74,49 @@ public class ManagementController : ControllerBase
             documentCount = i.Documents?.Count ?? 0
         });
 
-        LogInfo($"User [{_userService.Username}] requested /manage/users");
         return StatusCode(200, users);
     }
 
     [HttpPost("/manage/users")]
     public ObjectResult CreateUser([FromBody] UserCreateRequest payload)
     {
-        if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
+        if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
-        var existingUser = userCollection.FindOne(i => i.Username == payload.username);
-        if (existingUser is not null) return StatusCode(400, new { message = "User already exists" });
+        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
+        if (userCollection.Exists(i => i.Username == payload.username)) return StatusCode(400, new { message = "User already exists" });
 
-        var user = new DbUser()
+        var user = new KosyncUser()
         {
             Username = payload.username,
-            PasswordHash = Utility.HashPassword(payload.password),
-            IsAdministrator = false
+            PasswordHash = Utility.HashPassword(payload.password)
         };
 
         userCollection.Insert(user);
         userCollection.EnsureIndex(u => u.Username);
 
-        LogInfo($"User [{payload.username}] created by user [{_userService.Username}]");
+        LogInfo($"User [{payload.username}] created by [{_userService.Username}]");
         return StatusCode(200, new { message = "User created successfully" });
     }
 
     [HttpDelete("/manage/users")]
     public ObjectResult DeleteUser([FromQuery] string username)
     {
-        if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
+        if (!_userService.IsAdmin && username != _userService.Username) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
+        var userCollection = _db.Context.GetCollection<KosyncUser>("users");
         var user = userCollection.FindOne(u => u.Username == username);
-        if (user is null) return StatusCode(404, new { message = "User does not exist" });
+        if (user is null) return StatusCode(404, new { message = "User not found" });
 
         userCollection.Delete(user.Id);
         LogInfo($"User [{username}] deleted by [{_userService.Username}]");
         return StatusCode(200, new { message = "Success" });
     }
 
-    [HttpGet("/manage/users/documents")]
-    public ObjectResult GetDocuments([FromQuery] string username)
-    {
-        if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
-
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
-        var user = userCollection.FindOne(i => i.Username == username);
-        if (user is null) return StatusCode(400, new { message = "User does not exist" });
-
-        return StatusCode(200, user.Documents ?? new List<Document>());
-    }
-
-    [HttpDelete("/manage/users/documents")]
-    public ObjectResult DeleteDocument([FromQuery] string username, [FromQuery] string documentHash)
-    {
-        if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
-
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
-        var user = userCollection.FindOne(u => u.Username == username);
-        if (user is null) return StatusCode(404, new { message = "User not found" });
-
-        if (user.Documents == null) return StatusCode(404, new { message = "Document not found" });
-
-        var doc = user.Documents.FirstOrDefault(d => d.DocumentHash == documentHash);
-        if (doc == null) return StatusCode(404, new { message = "Document not found" });
-
-        user.Documents.Remove(doc);
-        userCollection.Update(user);
-
-        LogInfo($"Document [{documentHash}] deleted for user [{username}] by [{_userService.Username}]");
-        return StatusCode(200, new { message = "Success" });
-    }
-
-    [HttpPut("/manage/users/active")]
-    public ObjectResult UpdateUserActive([FromQuery] string username)
-    {
-        if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
-        {
-            return StatusCode(401, new { message = "Unauthorized" });
-        }
-
-        if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
-
-        var userCollection = _db.Context.GetCollection<DbUser>("users");
-        var user = userCollection.FindOne(i => i.Username == username);
-        if (user is null) return StatusCode(400, new { message = "User does not exist" });
-
-        user.IsActive = !user.IsActive;
-        userCollection.Update(user);
-
-        LogInfo($"User [{username}] set to {(user.IsActive ? "active" : "inactive")} by user [{_userService.Username}]");
-        return StatusCode(200, new { message = user.IsActive ? "User marked as active" : "User marked as inactive" });
-    }
-
-    [HttpPut("/manage/users/password")]
-    public ObjectResult UpdatePassword([FromQuery] string username, [FromBody] PasswordChangeRequest payload)
-    {
-        try 
-        {
-            if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
-            {
-                return StatusCode(401, new { message = "Unauthorized" });
-            }
-
-            if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
-            if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
-
-            var userCollection = _db.Context.GetCollection<DbUser>("users");
-            var user = userCollection.FindOne(i => i.Username == username);
-            if (user is null) return StatusCode(400, new { message = "User does not exist" });
-
-            user.PasswordHash = Utility.HashPassword(payload.password);
-            userCollection.Update(user);
-
-            LogInfo($"User [{username}] password updated by [{_userService.Username}].");
-            return StatusCode(200, new { message = "Password changed successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Management password update failed for {User}", username);
-            return StatusCode(500, new { message = "Internal Server Error", detail = ex.Message });
-        }
-    }
-
     private void LogInfo(string text) => Log(LogLevel.Information, text);
     private void Log(LogLevel level, string text)
     {
-        string logMsg = $"[{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}] [{_ipService.ClientIP}]";
-        if (_proxyService.TrustedProxies.Length > 0 && !_ipService.TrustedProxy) logMsg += "*";
-        logMsg += $" {text}";
+        string clientIp = _ipService?.ClientIP ?? "unknown";
+        string logMsg = $"[{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}] [{clientIp}] {text}";
         _logger?.Log(level, logMsg);
     }
 }
