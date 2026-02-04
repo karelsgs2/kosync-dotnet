@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Kosync.Controllers;
 
+using DbUser = Kosync.Database.Entities.User;
+
 [ApiController]
 public class SyncController : ControllerBase
 {
@@ -32,7 +34,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         
         return StatusCode(200, new {
@@ -47,7 +49,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
 
         if (payload.preferences != null) user.PreferencesJson = payload.preferences;
@@ -69,8 +71,7 @@ public class SyncController : ControllerBase
             if (payload == null || string.IsNullOrWhiteSpace(payload.password)) 
                 return StatusCode(400, new { message = "Password cannot be empty" });
 
-            // V LiteDB jsou Documents embedded v User, Include se nepoužívá a způsoboval chybu 500
-            var userCollection = _db.Context.GetCollection<User>("users");
+            var userCollection = _db.Context.GetCollection<DbUser>("users");
             var user = userCollection.FindOne(i => i.Username == _userService.Username);
             
             if (user is null) return StatusCode(404, new { message = "User not found" });
@@ -106,7 +107,7 @@ public class SyncController : ControllerBase
     }
 
     [HttpPost("/users/create")]
-    public ObjectResult CreateUser(UserCreateRequest payload)
+    public ObjectResult CreateUser([FromBody] UserCreateRequest payload)
     {
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         var regSetting = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
@@ -120,11 +121,11 @@ public class SyncController : ControllerBase
             return StatusCode(402, new { message = "User registration is disabled" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var existing = userCollection.FindOne(u => u.Username == payload.username);
         if (existing is not null) return StatusCode(402, new { message = "User already exists" });
 
-        var user = new User() { Username = payload.username, PasswordHash = payload.password };
+        var user = new DbUser() { Username = payload.username, PasswordHash = payload.password };
         userCollection.Insert(user);
         userCollection.EnsureIndex(u => u.Username);
 
@@ -133,11 +134,11 @@ public class SyncController : ControllerBase
     }
 
     [HttpPut("/syncs/progress")]
-    public ObjectResult SyncProgress(DocumentRequest payload)
+    public ObjectResult SyncProgress([FromBody] DocumentRequest payload)
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
 
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == payload.document);
@@ -162,7 +163,7 @@ public class SyncController : ControllerBase
     {
         if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == _userService.Username);
         var document = user.Documents.SingleOrDefault(i => i.DocumentHash == documentHash);
 
@@ -183,4 +184,10 @@ public class SyncController : ControllerBase
         logMsg += $" {text}";
         _logger?.Log(level, logMsg);
     }
+}
+
+public class UserProfileUpdateRequest
+{
+    public string? preferences { get; set; }
+    public string? metadata { get; set; }
 }
