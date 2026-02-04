@@ -10,7 +10,7 @@ RUN dotnet restore "Kosync.csproj"
 # Kopírování všech zdrojů
 COPY . .
 
-# Publikace (výstup do /app/publish)
+# Publikace
 RUN dotnet publish "Kosync.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Runtime
