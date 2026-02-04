@@ -61,18 +61,31 @@ public class SyncController : ControllerBase
     [HttpPut("/users/password/")]
     public ObjectResult UpdateMyPassword([FromBody] PasswordChangeRequest payload)
     {
-        if (!_userService.IsAuthenticated || !_userService.IsActive) return StatusCode(401, new { message = "Unauthorized" });
-        if (string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
+        try 
+        {
+            if (!_userService.IsAuthenticated || !_userService.IsActive) 
+                return StatusCode(401, new { message = "Unauthorized" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
-        var user = userCollection.FindOne(i => i.Username == _userService.Username);
-        if (user is null) return StatusCode(404, new { message = "User not found" });
+            if (payload == null || string.IsNullOrWhiteSpace(payload.password)) 
+                return StatusCode(400, new { message = "Password cannot be empty" });
 
-        user.PasswordHash = Utility.HashPassword(payload.password);
-        userCollection.Update(user);
+            // DŮLEŽITÉ: Musíme použít Include, jinak LiteDB smaže kolekci Documents při Update!
+            var userCollection = _db.Context.GetCollection<User>("users").Include(x => x.Documents);
+            var user = userCollection.FindOne(i => i.Username == _userService.Username);
+            
+            if (user is null) return StatusCode(404, new { message = "User not found" });
 
-        LogInfo($"User [{_userService.Username}] updated their own password.");
-        return StatusCode(200, new { message = "Password updated successfully" });
+            user.PasswordHash = Utility.HashPassword(payload.password);
+            userCollection.Update(user);
+
+            LogInfo($"User [{_userService.Username}] updated their own password successfully.");
+            return StatusCode(200, new { message = "Password updated successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating password for user {User}", _userService.Username);
+            return StatusCode(500, new { message = "Internal Server Error", detail = ex.Message });
+        }
     }
 
     [HttpGet("/users/auth")]
@@ -98,7 +111,6 @@ public class SyncController : ControllerBase
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         var regSetting = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
         
-        // Case-insensitive porovnání: RegistrationDisabled="true" nebo "True"
         bool registrationDisabled = regSetting?.Value != null && 
                                    regSetting.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
 
@@ -171,10 +183,4 @@ public class SyncController : ControllerBase
         logMsg += $" {text}";
         _logger?.Log(level, logMsg);
     }
-}
-
-public class UserProfileUpdateRequest
-{
-    public string? preferences { get; set; }
-    public string? metadata { get; set; }
 }
