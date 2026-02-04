@@ -1,4 +1,7 @@
 
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Kosync;
 
 public static class Utility
