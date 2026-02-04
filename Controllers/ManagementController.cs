@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Kosync.Controllers;
 
+using DbUser = Kosync.Database.Entities.User;
+
 [ApiController]
 public class ManagementController : ControllerBase
 {
@@ -39,7 +41,7 @@ public class ManagementController : ControllerBase
     }
 
     [HttpPut("/manage/settings")]
-    public ObjectResult UpdateSettings(Dictionary<string, string> payload)
+    public ObjectResult UpdateSettings([FromBody] Dictionary<string, string> payload)
     {
         if (!_userService.IsAdmin) return StatusCode(401, new { message = "Unauthorized" });
 
@@ -70,14 +72,14 @@ public class ManagementController : ControllerBase
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var users = userCollection.FindAll().Select(i => new
         {
             id = i.Id,
             username = i.Username,
             isAdministrator = i.IsAdministrator,
             isActive = i.IsActive,
-            documentCount = i.Documents.Count()
+            documentCount = i.Documents.Count
         });
 
         LogInfo($"User [{_userService.Username}] requested /manage/users");
@@ -85,18 +87,18 @@ public class ManagementController : ControllerBase
     }
 
     [HttpPost("/manage/users")]
-    public ObjectResult CreateUser(UserCreateRequest payload)
+    public ObjectResult CreateUser([FromBody] UserCreateRequest payload)
     {
         if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
         {
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var existingUser = userCollection.FindOne(i => i.Username == payload.username);
         if (existingUser is not null) return StatusCode(400, new { message = "User already exists" });
 
-        var user = new User()
+        var user = new DbUser()
         {
             Username = payload.username,
             PasswordHash = Utility.HashPassword(payload.password),
@@ -111,14 +113,14 @@ public class ManagementController : ControllerBase
     }
 
     [HttpDelete("/manage/users")]
-    public ObjectResult DeleteUser(string username)
+    public ObjectResult DeleteUser([FromQuery] string username)
     {
         if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
         {
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(u => u.Username == username);
         if (user is null) return StatusCode(404, new { message = "User does not exist" });
 
@@ -128,14 +130,14 @@ public class ManagementController : ControllerBase
     }
 
     [HttpGet("/manage/users/documents")]
-    public ObjectResult GetDocuments(string username)
+    public ObjectResult GetDocuments([FromQuery] string username)
     {
         if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
         {
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
@@ -143,14 +145,14 @@ public class ManagementController : ControllerBase
     }
 
     [HttpDelete("/manage/users/documents")]
-    public ObjectResult DeleteDocument(string username, string documentHash)
+    public ObjectResult DeleteDocument([FromQuery] string username, [FromQuery] string documentHash)
     {
         if (!_userService.IsAuthenticated || (!_userService.IsAdmin && !username.Equals(_userService.Username, StringComparison.OrdinalIgnoreCase)) || !_userService.IsActive)
         {
             return StatusCode(401, new { message = "Unauthorized" });
         }
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(u => u.Username == username);
         if (user is null) return StatusCode(404, new { message = "User not found" });
 
@@ -165,7 +167,7 @@ public class ManagementController : ControllerBase
     }
 
     [HttpPut("/manage/users/active")]
-    public ObjectResult UpdateUserActive(string username)
+    public ObjectResult UpdateUserActive([FromQuery] string username)
     {
         if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
         {
@@ -174,7 +176,7 @@ public class ManagementController : ControllerBase
 
         if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
@@ -196,7 +198,7 @@ public class ManagementController : ControllerBase
         if (payload == null || string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
         if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        var userCollection = _db.Context.GetCollection<DbUser>("users");
         var user = userCollection.FindOne(i => i.Username == username);
         if (user is null) return StatusCode(400, new { message = "User does not exist" });
 
