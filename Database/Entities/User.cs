@@ -1,14 +1,13 @@
 
 namespace Kosync.Database.Entities;
 
-public class DbUser
+public class User
 {
-    [BsonId]
     public int Id { get; set; }
 
-    public string Username { get; set; } = string.Empty;
+    public string Username { get; set; } = default!;
 
-    public string PasswordHash { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = default!;
 
     public bool IsActive { get; set; } = true;
 
