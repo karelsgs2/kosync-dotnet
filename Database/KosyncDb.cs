@@ -1,7 +1,4 @@
 
-using System.IO;
-using Kosync.Database.Entities;
-
 namespace Kosync.Database;
 
 public class KosyncDb
@@ -10,23 +7,6 @@ public class KosyncDb
 
     public KosyncDb()
     {
-        // Kritická oprava pro .NET 8: Explicitní mapování číselných typů.
-        // Pokud LiteDB najde v DB Decimal, převede ho na Double pro naše entity.
-        BsonMapper.Global.RegisterType<double>(
-            serialize: v => new BsonValue(v),
-            deserialize: v => {
-                if (v.IsNumber) return v.AsDouble;
-                if (v.IsDecimal) return (double)v.AsDecimal;
-                return 0.0;
-            }
-        );
-
-        // Zajištění, že složka pro databázi existuje
-        if (!Directory.Exists("data"))
-        {
-            Directory.CreateDirectory("data");
-        }
-
         Context = new LiteDatabase("Filename=data/Kosync.db;Connection=shared");
         CreateDefaults();
     }
@@ -39,31 +19,27 @@ public class KosyncDb
             adminPassword = "admin";
         }
 
-        var userCollection = Context.GetCollection<DbUser>("users");
+        var userCollection = Context.GetCollection<User>("users");
 
-        // Hledání admina bez LINQ pro maximální stabilitu při inicializaci
-        var adminUser = userCollection.FindOne(Query.EQ("Username", "admin"));
-        
+        var adminUser = userCollection.FindOne(i => i.Username == "admin");
         if (adminUser is null)
         {
-            adminUser = new DbUser()
+            adminUser = new User()
             {
                 Username = "admin",
                 IsAdministrator = true,
-                IsActive = true
             };
             userCollection.Insert(adminUser);
         }
 
         adminUser.PasswordHash = Utility.HashPassword(adminPassword);
-        adminUser.IsAdministrator = true;
 
         userCollection.Update(adminUser);
         userCollection.EnsureIndex(i => i.Username);
 
         // Inicializace systémových nastavení
         var settingsCollection = Context.GetCollection<SystemSetting>("system_settings");
-        settingsCollection.EnsureIndex(s => s.Key, true);
+        settingsCollection.EnsureIndex(s => s.Key, true); // Unikátní index na Key
 
         var regDisabled = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
         if (regDisabled is null)
