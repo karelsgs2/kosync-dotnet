@@ -1,24 +1,19 @@
-
-using System.Security.Cryptography;
-using System.Text;
-
 namespace Kosync;
 
 public static class Utility
 {
     public static string HashPassword(string password)
     {
-        if (string.IsNullOrEmpty(password)) return string.Empty;
+        var md5 = MD5.Create();
 
-        using var md5 = MD5.Create();
-        // KOReader a MD5 obvykle očekávají UTF-8 pro správné kódování speciálních znaků
-        byte[] inputBytes = Encoding.UTF8.GetBytes(password);
-        byte[] hashBytes = md5.ComputeHash(inputBytes);
+        md5.ComputeHash(ASCIIEncoding.ASCII.GetBytes(password));
+
+        var result = md5.Hash!;
 
         StringBuilder strBuilder = new StringBuilder();
-        for (int i = 0; i < hashBytes.Length; i++)
+        for (int i = 0; i < result.Length; i++)
         {
-            strBuilder.Append(hashBytes[i].ToString("x2"));
+            strBuilder.Append(result[i].ToString("x2"));
         }
 
         return strBuilder.ToString();
