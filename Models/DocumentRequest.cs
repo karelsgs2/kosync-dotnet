@@ -1,4 +1,3 @@
-
 namespace Kosync.Models;
 
 public class DocumentRequest
@@ -7,7 +6,7 @@ public class DocumentRequest
 
     public string progress { get; set; } = default!;
 
-    public double percentage { get; set; }
+    public decimal percentage { get; set; } = default!;
 
     public string device { get; set; } = default!;
 
