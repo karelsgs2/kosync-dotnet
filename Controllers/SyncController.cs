@@ -27,6 +27,17 @@ public class SyncController : ControllerBase
     [HttpGet("/healthcheck")]
     public ObjectResult HealthCheck() => StatusCode(200, new { state = "OK" });
 
+    [HttpGet("/public/settings")]
+    public ObjectResult GetPublicSettings()
+    {
+        var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
+        var adminEmail = settingsCollection.FindOne(s => s.Key == "AdminEmail");
+        
+        return StatusCode(200, new { 
+            adminEmail = adminEmail?.Value ?? "" 
+        });
+    }
+
     [HttpGet("/users/profile")]
     public ObjectResult GetUserProfile()
     {
