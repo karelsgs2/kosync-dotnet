@@ -13,6 +13,8 @@ public class User
 
     public bool IsAdministrator { get; set; } = false;
 
+    public bool IsSponsor { get; set; } = false;
+
     public string? PreferencesJson { get; set; }
 
     public string? MetadataJson { get; set; }
