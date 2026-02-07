@@ -78,6 +78,7 @@ public class ManagementController : ControllerBase
             username = i.Username,
             isAdministrator = i.IsAdministrator,
             isActive = i.IsActive,
+            isSponsor = i.IsSponsor,
             documentCount = i.Documents.Count()
         });
 
@@ -184,6 +185,25 @@ public class ManagementController : ControllerBase
 
         LogInfo($"User [{username}] set to {(user.IsActive ? "active" : "inactive")} by user [{_userService.Username}]");
         return StatusCode(200, new { message = user.IsActive ? "User marked as active" : "User marked as inactive" });
+    }
+
+    [HttpPut("/manage/users/sponsor")]
+    public ObjectResult UpdateUserSponsor(string username)
+    {
+        if (!_userService.IsAuthenticated || !_userService.IsAdmin || !_userService.IsActive)
+        {
+            return StatusCode(401, new { message = "Unauthorized" });
+        }
+
+        var userCollection = _db.Context.GetCollection<User>("users");
+        var user = userCollection.FindOne(i => i.Username == username);
+        if (user is null) return StatusCode(400, new { message = "User does not exist" });
+
+        user.IsSponsor = !user.IsSponsor;
+        userCollection.Update(user);
+
+        LogInfo($"User [{username}] sponsor status set to {user.IsSponsor} by user [{_userService.Username}]");
+        return StatusCode(200, new { message = user.IsSponsor ? "User marked as sponsor" : "User sponsor status removed" });
     }
 
     [HttpPut("/manage/users/password")]
