@@ -195,7 +195,6 @@ public class ManagementController : ControllerBase
         }
 
         if (string.IsNullOrWhiteSpace(payload.password)) return StatusCode(400, new { message = "Password cannot be empty" });
-        if (username == "admin") return StatusCode(400, new { message = "Cannot update admin user" });
 
         var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(i => i.Username == username);
