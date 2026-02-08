@@ -88,18 +88,19 @@ public class SyncController : ControllerBase
     [HttpGet("/users/auth")]
     public ObjectResult AuthoriseUser()
     {
-        string? username = Request.Headers["x-auth-user"];
-        string? passwordHash = Request.Headers["x-auth-key"];
-
-        if (username is null || passwordHash is null || !_userService.IsAuthenticated)
+        if (!_userService.IsAuthenticated)
         {
             return StatusCode(401, new { message = "Invalid credentials" });
         }
 
         if (!_userService.IsActive) return StatusCode(401, new { message = "User is inactive" });
 
-        LogInfo($"User [{username}] logged in.");
-        return StatusCode(200, new { username = _userService.Username });
+        LogInfo($"User [{_userService.Username}] authorized session.");
+        return StatusCode(200, new { 
+            username = _userService.Username, 
+            isAdministrator = _userService.IsAdmin, 
+            isSponsor = _userService.IsSponsor 
+        });
     }
 
     [HttpPost("/users/create")]
@@ -108,7 +109,6 @@ public class SyncController : ControllerBase
         var settingsCollection = _db.Context.GetCollection<SystemSetting>("system_settings");
         var regSetting = settingsCollection.FindOne(s => s.Key == "RegistrationDisabled");
         
-        // Case-insensitive porovnání: RegistrationDisabled="true" nebo "True"
         bool registrationDisabled = regSetting?.Value != null && 
                                    regSetting.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
 
