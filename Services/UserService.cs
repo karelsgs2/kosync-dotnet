@@ -1,3 +1,4 @@
+
 namespace Kosync.Services;
 
 public class UserService
@@ -6,7 +7,6 @@ public class UserService
     private KosyncDb _db;
 
     private bool userLoadAttempted = false;
-
 
     private string? _username = "";
     public string? Username
@@ -48,6 +48,15 @@ public class UserService
         }
     }
 
+    private bool _isSponsor = false;
+    public bool IsSponsor
+    {
+        get
+        {
+            LoadUser();
+            return _isSponsor;
+        }
+    }
 
     public UserService(IHttpContextAccessor contextAccessor, KosyncDb db)
     {
@@ -62,20 +71,18 @@ public class UserService
         userLoadAttempted = true;
 
         _username = _contextAccessor?.HttpContext?.Request.Headers["x-auth-user"];
-
         string? passwordHash = _contextAccessor?.HttpContext?.Request.Headers["x-auth-key"];
 
-        var userCollection = _db.Context.GetCollection<User>("users");
+        if (string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(passwordHash)) return;
 
+        var userCollection = _db.Context.GetCollection<User>("users");
         var user = userCollection.FindOne(i => i.Username == _username && i.PasswordHash == passwordHash);
 
         if (user is null) { return; }
 
-
         _isAuthenticated = true;
-
         _isActive = user.IsActive;
-
         _isAdmin = user.IsAdministrator;
+        _isSponsor = user.IsSponsor;
     }
 }
